@@ -1,0 +1,328 @@
+create database CMI_CTRL_HORAS
+USE CMI_CTRL_HORAS
+
+CREATE TABLE CH_USUARIO(
+IdUsuario int identity primary key,
+Nombre varchar(100) NOT NULL,
+Usuario varchar(50) NOT NULL UNIQUE,
+Contrasenya varchar(50) NOT NULL
+)
+go 
+
+INSERT INTO CH_USUARIO(Nombre, Usuario, Contrasenya) VALUES('Alejandro Yac', 'AYAC', '1234');
+GO 
+
+CREATE OR ALTER PROCEDURE sp_Autenticar(
+	@Usuario varchar(50),
+	@Pass varchar(50)
+)
+AS
+BEGIN
+	select * 
+	from CH_USUARIO 
+	where Usuario = @Usuario
+	and Contrasenya = @Pass
+END
+GO 
+
+EXEC sp_Autenticar	'AYAC', '1234'; 
+SELECT * FROM CH_USUARIO; 
+
+
+
+
+CREATE TABLE CH_INGRESO(
+    Id INT PRIMARY KEY IDENTITY(1,1), 
+    Fecha DATE NOT NULL, 
+    CodigoEmpleado VARCHAR(50) NOT NULL, 
+    HoraEntrada TIME(0) NOT NULL, 
+    HoraSalida TIME(0) NOT NULL, 
+    NombreUsuario VARCHAR(100) NOT NULL,
+    TipoHoras VARCHAR(20) NOT NULL, -- Tipo de horas: Horas Normales, Horas Extras, Horas Dobles
+    CONSTRAINT CK_TipoHoras CHECK (TipoHoras IN ('Horas Normales', 'Horas Extras', 'Horas Dobles')) -- Validación para tipos de horas
+);
+
+
+CREATE TABLE CH_HORAS_APROBADAS(
+    Id INT PRIMARY KEY IDENTITY(1,1), 
+    Fecha DATE NOT NULL, 
+    CodigoEmpleado VARCHAR(50) NOT NULL, 
+    HoraEntrada TIME(0) NOT NULL, 
+    HoraSalida TIME(0) NOT NULL, 
+    NombreUsuario VARCHAR(100) NOT NULL,
+	HorasExtras INT DEFAULT 0,
+	HorasTrabajadas INT DEFAULT 0, 
+    TipoHoras VARCHAR(20) NOT NULL, -- Tipo de horas: Horas Normales, Horas Extras, Horas Dobles
+    CONSTRAINT CK_TipoHorasAprovadas CHECK (TipoHoras IN ('Horas Normales', 'Horas Extras', 'Horas Dobles')), -- Validación para tipos de horas
+	Registro DATETIME DEFAULT GETDATE(),
+	Aprobado BIT DEFAULT 0
+);
+
+CREATE TABLE Jornada (
+    IdJornada INT PRIMARY KEY IDENTITY(1,1), 
+    Nombre VARCHAR(50) NOT NULL, --(Diurna, Mixta, Nocturna)
+    HoraInicio TIME(0) NOT NULL, 
+    HoraFin TIME(0) NOT NULL 
+);
+
+CREATE TABLE TipoHoras (
+    IdTipoHoras INT PRIMARY KEY IDENTITY(1,1), 
+    Descripcion VARCHAR(50) NOT NULL -- (NORMALES, EXTRAS, DOBLES)
+);
+
+
+
+-- INGRESO DE INFORMAICON:
+
+-- Insertar datos en la tabla Jornada
+INSERT INTO Jornada (Nombre, HoraInicio, HoraFin) VALUES
+('Jornada Diurna', '07:00', '14:59'),
+('Jornada Mixta', '14:00', '20:59'),
+('Jornada Nocturna', '20:00', '02:00');
+
+-- Insertar datos en la tabla TipoHoras
+INSERT INTO TipoHoras (Descripcion) VALUES
+('Horas Normales'),
+('Horas Extras'),
+('Horas Dobles');
+
+go 
+
+-- final 
+CREATE OR ALTER PROCEDURE CH_GuardarIngreso
+    @FechaIngreso VARCHAR(100),
+    @CodigoEmpleado VARCHAR(50),
+    @HoraEntrada TIME,
+    @HoraSalida TIME,
+	@MiUsuario VARCHAR(50)
+AS
+BEGIN
+    DECLARE @TipoHoras VARCHAR(20);
+    DECLARE @JornadaInicio TIME;
+    DECLARE @JornadaFin TIME;
+    DECLARE @HorasTrabajadas INT;
+	DECLARE @Fecha DATE;
+
+	-- formato fecha
+	SET @Fecha = CONVERT(DATE, @FechaIngreso, 103);
+
+    -- Definir jornadas laborales
+    IF @HoraEntrada >= '07:00' AND @HoraSalida <= '14:59'
+    BEGIN
+        SET @JornadaInicio = '07:00';
+        SET @JornadaFin = '14:59';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE IF @HoraEntrada >= '14:00' AND @HoraSalida <= '20:59'
+    BEGIN
+        SET @JornadaInicio = '14:00';
+        SET @JornadaFin = '20:59';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE IF @HoraEntrada >= '20:00' OR @HoraSalida <= '02:00'
+    BEGIN
+        SET @JornadaInicio = '20:00';
+        SET @JornadaFin = '02:00';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE
+    BEGIN
+        -- verifica si es horas extras o normales
+        DECLARE @JornadaDuracion INT;
+
+        IF @HoraSalida < @HoraEntrada
+        BEGIN
+            -- madrugada >> salida
+            SET @HorasTrabajadas = DATEDIFF(MINUTE, @HoraEntrada, '23:59') + DATEDIFF(MINUTE, '00:00', @HoraSalida);
+        END
+        ELSE
+        BEGIN
+            SET @HorasTrabajadas = DATEDIFF(MINUTE, @HoraEntrada, @HoraSalida);
+        END
+
+        -- Validar si hay horas extras
+        SET @JornadaDuracion = DATEDIFF(MINUTE, @JornadaInicio, @JornadaFin);
+        IF @HorasTrabajadas > @JornadaDuracion --AND @HorasTrabajadas <= @JornadaDuracion + 300
+        BEGIN
+            SET @TipoHoras = 'Horas Extras';
+        END
+        ELSE
+        BEGIN
+            SET @TipoHoras = 'Horas Normales';
+        END
+    END
+
+	-- HORAS TRABAJADAS: 
+	DECLARE @HORAS_T INT; 
+	BEGIN 
+		SET @HORAS_T = @HorasTrabajadas / 60; 
+	END 
+	-- PRINT 'TOTAL HORAS>> ' + CAST(@HORAS_T AS VARCHAR(10));
+
+    -- Insertar en la tabla Ingreso
+    INSERT INTO CH_INGRESO (Fecha, CodigoEmpleado, HoraEntrada, HoraSalida, NombreUsuario, TipoHoras)
+    VALUES (@Fecha, @CodigoEmpleado, @HoraEntrada, @HoraSalida, @MiUsuario, @TipoHoras);
+END
+go 
+
+SELECT * FROM CH_INGRESO; 
+
+--2024-10-23
+--SYSTEM_USER
+-- --------------------------------------------------------------------------------
+Go 
+-- use CMI_CTRL_HORAS
+
+CREATE OR ALTER PROCEDURE CH_GuardarIngreso
+    @FechaIngreso VARCHAR(100),
+    @CodigoEmpleado VARCHAR(50),
+    @HoraEntrada TIME,
+    @HoraSalida TIME,
+    @MiUsuario VARCHAR(50)
+AS
+BEGIN
+    DECLARE @TipoHoras VARCHAR(20);
+    DECLARE @JornadaInicio TIME;
+    DECLARE @JornadaFin TIME;
+    DECLARE @HorasTrabajadas INT;
+    DECLARE @Fecha DATE;
+
+    -- Formatear la fecha
+    SET @Fecha = CONVERT(DATE, @FechaIngreso, 103);
+
+    -- Validar jornadas laborales
+    IF @HoraEntrada >= '07:00' AND @HoraSalida <= '14:59'
+    BEGIN
+        SET @JornadaInicio = '07:00';
+        SET @JornadaFin = '14:59';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE IF @HoraEntrada >= '14:00' AND @HoraSalida <= '20:59'
+    BEGIN
+        SET @JornadaInicio = '14:00';
+        SET @JornadaFin = '20:59';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE IF @HoraEntrada >= '20:00' OR @HoraSalida <= '02:00'
+    BEGIN
+        SET @JornadaInicio = '20:00';
+        SET @JornadaFin = '02:00';
+        SET @TipoHoras = 'Horas Normales';
+    END
+    ELSE
+    BEGIN
+        -- Verifica si es horas extras o normales
+        DECLARE @JornadaDuracion INT;
+
+        -- Calcular la diferencia en minutos
+        IF @HoraSalida < @HoraEntrada
+        BEGIN
+            -- Caso para jornada que cruza medianoche
+            SET @HorasTrabajadas = DATEDIFF(MINUTE, @HoraEntrada, '23:59') + DATEDIFF(MINUTE, '00:00', @HoraSalida);
+        END
+        ELSE
+        BEGIN
+            -- Jornada normal sin cruce de medianoche
+            SET @HorasTrabajadas = DATEDIFF(MINUTE, @HoraEntrada, @HoraSalida);
+        END
+
+        -- Validar si hay horas extras
+        SET @JornadaDuracion = DATEDIFF(MINUTE, @JornadaInicio, @JornadaFin);
+        IF @HorasTrabajadas > @JornadaDuracion
+        BEGIN
+            SET @TipoHoras = 'Horas Extras';
+        END
+        ELSE
+        BEGIN
+            SET @TipoHoras = 'Horas Normales';
+        END
+    END
+
+    -- Calcular horas trabajadas en horas
+    DECLARE @HORAS_T INT;
+    SET @HORAS_T = @HorasTrabajadas / 60;
+
+    -- Insertar en la tabla CH_INGRESO
+    INSERT INTO CH_INGRESO (Fecha, CodigoEmpleado, HoraEntrada, HoraSalida, NombreUsuario, TipoHoras)
+    VALUES (@Fecha, @CodigoEmpleado, @HoraEntrada, @HoraSalida, @MiUsuario, @TipoHoras);
+END; 
+
+GO
+
+TRUNCATE TABLE CH_INGRESO; 
+
+EXEC CH_GuardarIngreso '03/10/2024', '77', '07:00', '17:00', 'AYAC';
+EXEC CH_GuardarIngreso '01/10/2024', '78', '09:00', '18:00', 'AYAC';
+EXEC CH_GuardarIngreso '02/10/2024', '77', '07:00', '18:00', 'AYAC';
+EXEC CH_GuardarIngreso '15/09/2024', '79', '07:00', '05:30', 'AYAC';
+EXEC CH_GuardarIngreso '02/10/2024', '79', '14:00', '20:00', 'AYAC';
+
+SELECT * FROM CH_INGRESO; 
+
+GO
+
+-- 1. INGRESO DE HORAS. 
+
+create procedure sp_Listar
+as
+begin
+	select * from CH_INGRESO
+end
+
+EXEC sp_Listar; 
+
+
+-- 2. Aprobacion. 
+go 
+CREATE PROCEDURE SP_InsertarHorasAprobadas
+    @Fecha DATE,
+    @CodigoEmpleado VARCHAR(50),
+    @HoraEntrada TIME(0),
+    @HoraSalida TIME(0),
+    @NombreUsuario VARCHAR(100)
+AS
+BEGIN
+    DECLARE @HorasTrabajadas INT;
+    DECLARE @TipoHoras VARCHAR(20);
+    DECLARE @HorasExtras INT = 0;
+    DECLARE @HorasDobles INT = 0;
+    DECLARE @JornadaNombre VARCHAR(50);
+
+    -- Obtener la jornada 
+    SELECT @JornadaNombre = Nombre 
+    FROM Jornada 
+    WHERE @HoraEntrada >= HoraInicio AND 
+          (@HoraSalida < HoraFin OR @HoraSalida >= '00:00');
+
+    -- Calcular las horas trabajadas
+    SET @HorasTrabajadas = DATEDIFF(MINUTE, @HoraEntrada, @HoraSalida) / 60;
+
+    -- Determinar el tipo de horas
+    IF @JornadaNombre IS NOT NULL
+    BEGIN
+        IF @HorasTrabajadas <= 8
+        BEGIN
+            SET @TipoHoras = 'Horas Normales';
+        END
+        ELSE IF @HorasTrabajadas > 8 AND @HorasTrabajadas <= 13
+        BEGIN
+            SET @HorasExtras = @HorasTrabajadas - 8;
+            SET @TipoHoras = 'Horas Extras';
+        END
+        ELSE IF @HorasTrabajadas > 13
+        BEGIN
+            SET @HorasDobles = @HorasTrabajadas - 8; -- Considerar horas dobles más allá de las horas extras
+            SET @TipoHoras = 'Horas Dobles';
+        END
+    END
+    ELSE
+    BEGIN
+        SET @TipoHoras = 'No Definida'; -- Si no hay jornada definida
+    END
+
+    -- Insertar en la tabla CH_HORAS_APROBADAS
+    INSERT INTO CH_HORAS_APROBADAS (Fecha, CodigoEmpleado, HoraEntrada, HoraSalida, NombreUsuario, TipoHoras, HorasExtras, HorasTrabajadas)
+    VALUES (@Fecha, @CodigoEmpleado, @HoraEntrada, @HoraSalida, @NombreUsuario, @TipoHoras, @HorasExtras, @HorasTrabajadas);
+END;
+
+-- 3. Reportes. 
