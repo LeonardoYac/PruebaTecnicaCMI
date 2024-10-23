@@ -1,0 +1,52 @@
+﻿@model List<IngresoModel>
+@{
+    ViewData["Title"] = "Programa";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>Programa</h1>
+
+<div class="card">
+    <div class="card-header">
+        INGRESO DE HORAS
+    </div>
+    <div class="card-body">
+        <a asp-action="Guardar" asp-controller="Mantenedor" class="btn btn-success"><i class="bi bi-plus-circle"></i> Grabar Horas</a>
+        <hr />
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Codigo Empleado</th>
+                    <th>Hora Entrada</th>
+                    <th>Hora Salida</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                @if (Model == null || !Model.Any())
+                {
+                    <tr>
+                        <td colspan="4">No hay datos disponibles.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.Fecha.ToString("dd/MM/yyyy")</td>
+                            <td>@item.CodigoEmpleado</td>
+                            <td>@item.HoraEntrada.ToString(@"hh\:mm")</td>
+                            <td>@item.HoraSalida.ToString(@"hh\:mm")</td>
+
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+

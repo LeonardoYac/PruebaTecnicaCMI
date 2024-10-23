@@ -1,0 +1,42 @@
+﻿@model IngresoModel
+@{
+    ViewData["Title"] = "Guardar";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="card">
+    <div class="card-header">
+        Registrar Horario
+    </div>
+    <div class="card-body">
+
+
+        <form asp-action="Guardar" asp-controller="Mantenedor" method="post">
+            <div class="mb-3">
+                <label class="form-label">Fecha</label>
+                <input asp-for="Fecha" type="date" class="form-control">
+                <span asp-validation-for="Fecha" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Codigo Empleado</label>
+                <input asp-for="CodigoEmpleado" type="text" class="form-control">
+                <span asp-validation-for="CodigoEmpleado" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Hora Entrada</label>
+                <input asp-for="HoraEntrada" type="text" class="form-control">
+                <span asp-validation-for="HoraEntrada" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Hora Salida</label>
+                <input asp-for="HoraSalida" type="text" class="form-control">
+                <span asp-validation-for="HoraSalida" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <a asp-action="Programa" asp-controller="Mantenedor" class="btn btn-warning">Volver a la lista</a>
+        </form>
+
+
+    </div>
+</div>
+

@@ -1,0 +1,43 @@
+﻿@model UsuarioModel
+@{
+    ViewData["Title"] = "AutenticarFrm";
+}
+
+
+<!DOCTYPE html>
+    <html>
+    <head>
+        <title></title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    </head>
+    <body>
+    <div class="card">
+        <div class="card-header">
+            LOGIN
+        </div>
+        <div class="card-body">
+
+
+            <form asp-action="AutenticarFrm" asp-controller="Mantenedor" method="post">
+                <div class="mb-3">
+                    <label class="form-label">Usuario</label>
+                    <input asp-for="Usuario" type="text" class="form-control">
+                    <span asp-validation-for="Usuario" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contraseña</label>
+                    <input asp-for="Contrasenya" type="password" class="form-control">
+                    <span asp-validation-for="Contrasenya" class="text-danger"></span>
+                </div>                
+                <button type="submit" class="btn btn-primary">Ingresar</button>
+            </form>
+
+
+        </div>
+    </div>
+
+    </body>
+    </html>
+
+
+
